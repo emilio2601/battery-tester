@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="batteryApp">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <title>Battery Tester v1.0</title>
+
+    <link  href="css/sb-admin-2.css" rel="stylesheet">
+    <link  href="css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link  href="css/bootstrap.min.css" rel="stylesheet">
+    <script src="js/angular.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/FileSaver.min.js"></script>
+    <script src="js/Chart.bundle.min.js"></script>
+
+
+
+
+</head>
+
+<body ng-controller="BatteryController">
+
+    <div id="wrapper">
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="index.html">{{title}} <small>by Emilio Mendoza</small></a>
+            </div>
+            <!-- /.navbar-header -->
+            <!-- /.navbar-static-side -->
+        </nav>
+
+        <div id="page-wrapper">
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1 class="page-header">{{title}}</h1>
+                </div>
+                <!-- /.col-lg-12 -->
+            </div>
+            <!-- /.row -->
+            <!-- /.row -->
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <i class="fa fa-bar-chart-o fa-fw"></i> Load parameters
+                        </div>
+                        <div class="panel-body">
+                          <form role="form">
+                            <div class="form-group">
+                                <label>Choose type of load</label>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" ng-model="tester.load.type" value="ohms" checked>Constant resistance
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" ng-model="tester.load.type" value="amps">Constant load
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" ng-model="tester.load.type" value="watts">Constant power
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Choose load details ({{tester.load.type}})</label>
+                                <input class="form-control" type="number" name="load" ng-model="tester.load.amount" step="0.01" size="5" required>
+                            </div>
+
+                          </form>
+                        </div>
+                    </div>
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <i class="fa fa-wrench fa-fw"></i> Battery Config
+                        </div>
+                        <!-- /.panel-heading -->
+                        <div class="panel-body">
+                          <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <i class="fa fa-battery-2 fa-fw"></i><i class="fa fa-battery-2 fa-fw"></i><i class="fa fa-battery-2 fa-fw"></i> Pack configuration
+                              </div>
+                              <!-- /.panel-heading -->
+                              <div class="panel-body">
+                                <form role="form">
+                                  <div class="form-group">
+                                      <label>Cells in series</label>
+                                      <input class="form-control" type="number" name="series" ng-model="tester.pack.series" step="1" required>
+                                      <p class="help-block">Connecting cells in series will increase voltage</p>
+                                  </div>
+                                  <div class="form-group">
+                                      <label>Cells in parallel </label>
+                                      <input class="form-control" type="number" name="parallel" ng-model="tester.pack.parallel" step="1" required>
+                                      <p class="help-block">Connecting cells in parallel will increase the capacity as well as the current draw limit</p>
+                                  </div>
+                                  <label>Total number of cells: {{tester.pack.series * tester.pack.parallel}}</label>
+
+                                </form>
+                              </div>
+                          </div>
+                          <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <i class="fa fa-battery-1 fa-fw"></i> Voltage start and cutoff per cell
+                              </div>
+                              <!-- /.panel-heading -->
+                              <div class="panel-body">
+                                <form role="form">
+                                    <div class="form-group">
+                                        <label>Starting voltage</label>
+                                        <input class="form-control" type="number" name="start_volts" ng-model="tester.cell.start" step="0.01" size="5" required>
+                                        <p class="help-block">For fully charged li-ion batteries, it is usually around 4.20 volts</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Cutoff voltage</label>
+                                        <input class="form-control" type="number" name="end_volts" ng-model="tester.cell.cutoff" step="0.01" size="5" required>
+                                        <p class="help-block">A good cutoff for li-ion is 2.85 volts. Absolute limit should be 2.50 volts</p>
+                                    </div>
+                                    <p class="help-block">For other chemistries, check your cell datasheet to safely determine these values</p>
+                                </form>
+                              </div>
+                          </div>
+                        </div>
+                        <!-- /.panel-body -->
+                    </div>
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <i class="fa fa-bar-chart-o fa-fw"></i> Test
+                        </div>
+                        <!-- /.panel-heading -->
+                        <div class="panel-body">
+                          <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <i class="fa fa-bars fa-fw"></i> Multimeter
+                              </div>
+                              <!-- /.panel-heading -->
+                              <div class="panel-body">
+                                <h3>{{display_voltage()}}</h3>
+                                  <div ng-show="!tester.has_started">
+                                    <button type="button" class="btn btn-success" ng-click="test_start()">Start!</button>
+                                  </div>
+                                  <div ng-show="tester.has_started && !tester.has_stopped">
+                                    <button type="button" class="btn btn-warning" ng-click="decrease_volt()">-0.01</button>
+                                    <button type="button" class="btn btn-danger" ng-click="test_end(true)">Stop!</button>
+                                  </div>
+                                  <div ng-show="tester.has_started && tester.has_stopped && tester.stopped_by_user">
+                                    <p class="text-danger">Test has been stopped</p>
+                                    <button type="button" class="btn btn-success" ng-click="download()">Download log file</button>
+                                    <button type="button" class="btn btn-warning" ng-click="reload()">Reload tester</button>
+                                  </div>
+                                  <div ng-show="tester.has_started && tester.has_stopped && !tester.stopped_by_user">
+                                    <p class="text-danger">Safety cutoff - please disconnect load</p>
+                                    <button type="button" class="btn btn-success" ng-click="download()">Download log file</button>
+                                    <button type="button" class="btn btn-warning" ng-click="reload()">Reload tester</button>
+                                  </div>
+
+
+
+                              </div>
+                      </div>
+                          <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <i class="fa fa-line-chart fa-fw"></i> Stats
+                              </div>
+                              <!-- /.panel-heading -->
+                              <div class="panel-body">
+                                <label>Instantaneous</label> <br/>
+                                <p>{{current_draw()}} amps @ {{display_voltage()}} volts</p>
+                                <p>{{power_draw()}} watts</p>
+                                <br/>
+                                <label>Accumulated</label>
+                                <p>{{accumulated_amps()}} mAh</p>
+                                <p>{{accumulated_watts()}} Wh</p>
+                              </div>
+                      </div>
+                        </div>
+                </div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <i class="fa fa-area-chart fa-fw"></i> Graphs
+                    </div>
+                    <!-- /.panel-heading -->
+                    <div class="panel-body">
+                      <canvas id="myChart" height="500"></canvas>
+                    </div>
+
+              </div>
+              <div style="text-align:center" ng-show="tester.has_started && tester.has_stopped">
+                <button type="button" class="btn btn-success" ng-click="download_graph()">Download graph as PNG</button>
+              </div>
+
+
+            </div>
+            <!-- /.row -->
+        </div>
+        <!-- /#page-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+</body>
+</html>
